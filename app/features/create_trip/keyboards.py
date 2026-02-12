@@ -1,6 +1,17 @@
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 from datetime import datetime, timedelta
 
+
+start_keyboard = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [InlineKeyboardButton(text="Создать поездку", callback_data="create_trip")],
+        [InlineKeyboardButton(text="Найти поездку", callback_data="search_trip")],
+        [InlineKeyboardButton(text="Мои поездки", callback_data="my_trips")],
+        [InlineKeyboardButton(text="Мой профиль", callback_data="profile")],
+        [InlineKeyboardButton(text="Помощь", callback_data="support")]
+    ]
+)
+
 chosse_ts = InlineKeyboardMarkup(
     inline_keyboard=[
         [
@@ -114,56 +125,42 @@ chosse_toP = InlineKeyboardMarkup(
     ]
 )
 
+WEEKDAYS_RU = {
+    0: "Пн",
+    1: "Вт",
+    2: "Ср",
+    3: "Чт",
+    4: "Пт",
+    5: "Сб",
+    6: "Вс",
+}
+
+
 def choose_day_kb():
     today = datetime.today()
     days = [today + timedelta(days=i) for i in range(7)]
 
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [
+    keyboard = []
+
+    for i in range(0, 7, 2):
+        row = []
+        for day in days[i:i + 2]:
+            row.append(
                 InlineKeyboardButton(
-                    text=days[0].strftime("%a %d.%m"),
-                    callback_data=f"day_{days[0].strftime('%Y-%m-%d')}"
-                ),
-                InlineKeyboardButton(
-                    text=days[1].strftime("%a %d.%m"),
-                    callback_data=f"day_{days[1].strftime('%Y-%m-%d')}"
+                    text=f"{WEEKDAYS_RU[day.weekday()]} {day.strftime('%d.%m')}",
+                    callback_data=f"day_{day.strftime('%Y-%m-%d')}"
                 )
-            ],
-            [
-                InlineKeyboardButton(
-                    text=days[2].strftime("%a %d.%m"),
-                    callback_data=f"day_{days[2].strftime('%Y-%m-%d')}"
-                ),
-                InlineKeyboardButton(
-                    text=days[3].strftime("%a %d.%m"),
-                    callback_data=f"day_{days[3].strftime('%Y-%m-%d')}"
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    text=days[4].strftime("%a %d.%m"),
-                    callback_data=f"day_{days[4].strftime('%Y-%m-%d')}"
-                ),
-                InlineKeyboardButton(
-                    text=days[5].strftime("%a %d.%m"),
-                    callback_data=f"day_{days[5].strftime('%Y-%m-%d')}"
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    text=days[6].strftime("%a %d.%m"),
-                    callback_data=f"day_{days[6].strftime('%Y-%m-%d')}"
-                )
-            ],
-            [
-                InlineKeyboardButton(
-                    text="Отменить",
-                    callback_data="cancel_create_trip"
-                )
-            ]
-        ]
-    )
+            )
+        keyboard.append(row)
+
+    keyboard.append([
+        InlineKeyboardButton(
+            text="Отменить",
+            callback_data="cancel_create_trip"
+        )
+    ])
+
+    return InlineKeyboardMarkup(inline_keyboard=keyboard)
 
 only_cancel = InlineKeyboardMarkup(
     inline_keyboard=[
