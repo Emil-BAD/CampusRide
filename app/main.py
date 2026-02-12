@@ -1,21 +1,22 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI
 from contextlib import asynccontextmanager
-from sqlalchemy.orm import Session
-from app.database import get_db
-from app.redis_client import redis_client
+from app.database import init_db, AsyncSessionLocal
 from app.bot import start_bot
+from app.db import seed_locations
 import asyncio
-from sqlalchemy import text
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """Lifespan handler: start background bot task on startup and cancel on shutdown."""
+    """Lifespan handler: init DB, seed locations, start bot."""
+    await init_db()
+    async with AsyncSessionLocal() as session:
+        await seed_locations(session)
+
     bot_task = asyncio.create_task(start_bot())
     try:
         yield
     finally:
-        # cancel the background bot task on shutdown
         bot_task.cancel()
         try:
             await bot_task
