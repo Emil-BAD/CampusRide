@@ -2,7 +2,8 @@ import textwrap
 import html
 from datetime import datetime
 from aiogram import F, Router
-from aiogram.types import CallbackQuery, InlineKeyboardMarkup
+from aiogram.types import CallbackQuery, InlineKeyboardMarkup, Message
+from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 
 from app.features.create_trip.keyboards import start_keyboard
@@ -54,6 +55,15 @@ def _format_trip_no_creator(trip_dict: dict, num: int) -> str:
         f"<b>💬 Комментарий</b>\n"
         f"   {html.escape(t.comment or 'Нет')}\n"
     )
+
+
+@router.message(Command("search"))
+async def cmd_search(message: Message, state: FSMContext):
+    """Команда /search — старт режима поиска поездок."""
+    await state.clear()
+    text = "🔍 Выберите общежитие (откуда едете):"
+    await message.answer(text, reply_markup=search_filter_dorm_kb())
+    await state.set_state(SearchTrip.filter_dorm)
 
 
 @router.callback_query(F.data == "search_trip")

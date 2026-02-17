@@ -6,9 +6,25 @@ from aiogram.filters import Command
 from dotenv import load_dotenv
 import textwrap
 import html
-from app.features.create_trip.keyboards import start_keyboard, chosse_ts, chosse_fromP, chosse_toP, choose_day_kb, places_personal, places_taxi, for_comment, confirm_create_trip
+from app.features.create_trip.keyboards import (
+    start_keyboard,
+    chosse_ts,
+    chosse_fromP,
+    chosse_toP,
+    choose_day_kb,
+    places_personal,
+    places_taxi,
+    for_comment,
+    confirm_create_trip,
+)
+from sqlalchemy import select
+from sqlalchemy.orm import selectinload, joinedload
+
 from app.features.create_trip.service import save_trip
 from app.database import AsyncSessionLocal
+from app.core.redis import redis_client
+from app.reminders import maybe_send_trip_reminders
+from app.models.trip import Trip, TripParticipant
 from aiogram.fsm.context import FSMContext
 from app.states.CreateTrip import CreateTrip
 from app.constants import WEEKDAYS_RU, MONTHS_RU, BUILDINGS, DORMS
@@ -32,6 +48,17 @@ async def cmd_start(message: Message, state: FSMContext):
 Выберите действие ниже 👇""")
     await state.clear()
     await message.answer(text, reply_markup=start_keyboard)
+
+
+@router.message(Command("create"))
+async def cmd_create(message: Message, state: FSMContext):
+    """Команда /create — то же самое, что нажать кнопку 'Создать поездку'."""
+    text = textwrap.dedent(
+        """🚗 Отлично! Давайте создадим новую поездку.
+Выберите тип поездки 👇"""
+    )
+    await message.answer(text=text, reply_markup=chosse_ts)
+    await state.set_state(CreateTrip.typeTrip)
 
 @router.callback_query(F.data == "create_trip")
 async def create_trip(callback: CallbackQuery, state: FSMContext):
@@ -151,8 +178,19 @@ async def confirm_trip(callback: CallbackQuery, state: FSMContext):
     username = callback.from_user.username if callback.from_user else None
 
     async with AsyncSessionLocal() as session:
-        await save_trip(session, data, tg_id, username)
+        trip = await save_trip(session, data, tg_id, username)
         await session.commit()
+        # Сразу отправить напоминания, если поездка менее чем через 15/5 минут
+        res = await session.execute(
+            select(Trip)
+            .where(Trip.id == trip.id)
+            .options(
+                selectinload(Trip.creator),
+                selectinload(Trip.participants).joinedload(TripParticipant.user),
+            )
+        )
+        trip_full = res.scalar_one()
+        await maybe_send_trip_reminders(callback.bot, redis_client, trip_full)
 
     await state.clear()
 
